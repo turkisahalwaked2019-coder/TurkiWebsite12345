@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<title>محاكي اختبار القدرات</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: Tahoma, Arial, sans-serif;
+    background: #f7f7f7;
+  }
+
+  header, footer {
+    width: 100%;
+    padding: 10px 20px;
+    color: #fff;
+    background: #0d47a1;
+    font-weight: bold;
+    position: fixed;
+    left: 0;
+    z-index: 10;
+  }
+  header { top: 0; text-align: center; }
+  footer {
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  /* أزرار تكبير/تصغير الخط */
+  #fontControls {
+    position: fixed;
+    top: 8px;
+    left: 20px;
+    z-index: 11;
+    display: flex;
+    gap: 6px;
+  }
+  #fontControls button {
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: #fff;
+    color: #0d47a1;
+    font-weight: bold;
+  }
+
+  .container {
+    margin-top: 60px;
+    margin-bottom: 40px;
+    height: calc(100vh - 100px);
+    display: none; /* تظهر بعد بدء القسم الأول */
+  }
+
+  .left-panel {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+  }
+
+  .right-panel {
+    width: 28%;
+    border-right: 3px solid #0d47a1;
+    background: #e3f2fd;
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .question-box {
+    background: #e3f2fd;
+    padding: 20px;
+    border-radius: 10px;
+    border: 2px solid #0d47a1;
+  }
+
+  #sectionLabel {
+    font-size: 20px;
+    font-weight: bold;
+    color: #0d47a1;
+    text-align: center;
+    margin-bottom: 5px;
+  }
+
+  #timerBox {
+    font-size: 20px;
+    font-weight: bold;
+    color: #0d47a1;
+    text-align: center;
+    margin-bottom: 15px;
+  }
+
+  .q-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: #ef9a9a; /* افتراضي = غير محلول */
+    cursor: pointer;
+    border: 1px solid #0d47a1;
+    margin: 4px;
+    font-weight: bold;
+  }
+  .q-btn.answered { background: #a5d6a7; }
+  .q-btn.marked   { border: 3px solid #ffeb3b; }
+
+  .options label {
+    display: block;
+    margin: 8px 0;
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .actions button,
+  .overlay button {
+    padding: 8px 16px;
+    font-size: 15px;
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    background: #0d47a1;
+    color: #fff;
+  }
+
+  .overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #ffffff;
+    display: none;
+    z-index: 20;
+    text-align: center;
+    /* بدل padding-top بخاصية مركزية */
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .overlay-content {
+    max-width: 700px;
+    margin: 0 auto;
+    background: #e3f2fd;
+    padding: 30px;
+    border-radius: 16px;
+    border: 2px solid #0d47a1;
+    text-align: right;
+  }
+
+  .overlay h2 {
+    text-align: center;
+    margin-bottom: 15px;
+  }
+
+  .end-screen h2 {
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+
+<header>قياس</header>
+
+<div id="fontControls">
+  <button onclick="setFontSize(14)">A−</button>
+  <button onclick="setFontSize(16)">A</button>
+  <button onclick="setFontSize(20)">A+</button>
+</div>
+
+<footer>
+  برمجة الطالب: تركي سهل صبحي واكد — ثانوية الظهران الحكومية
+</footer>
+
+<!-- شاشة التعليمات الأولى -->
+<div id="instructionsScreen" class="overlay" style="display:flex;align-items:flex-start;justify-content:center;">
+  <div class="overlay-content">
+    <h2>مرحباً بالطالب: تركي سهل صبحي واكد</h2>
+    <p>الرجاء قراءة تعليمات الاختبار بعناية:</p>
+    <ol>
+      <li>الاختبار يحتوي على <strong>120 سؤالاً</strong> موزعة على عدة أقسام.</li>
+      <li>لا يمكنك العودة إلى القسم الذي أنهيته.</li>
+      <li>مدة كل قسم <strong>25 دقيقة</strong> فقط.</li>
+    </ol>
+    <div style="text-align:center;margin-top:15px;">
+      <button onclick="startAfterInstructions()">ابدأ</button>
+    </div>
+  </div>
+</div>
+
+<!-- شاشة الانتقال بين الأقسام -->
+<div id="sectionScreen" class="overlay">
+  <div>
+    <p id="sectionMessage" style="font-size:22px;margin-bottom:10px;">سيتم البدء في القسم الأول.</p>
+    <p id="autoNextTimer">سيتم الانتقال خلال 5 ثوانٍ...</p>
+    <button onclick="skipSectionIntro()">ابدأ الآن</button>
+  </div>
+</div>
+
+<!-- شاشة الاختبار -->
+<div id="quizContainer" class="container">
+  <div class="left-panel">
+    <div id="sectionLabel">القسم رقم 1</div>
+    <div id="timerBox">الوقت: 25:00</div>
+    <div class="question-box">
+      <h2 id="qTitle">السؤال</h2>
+      <p id="qText">سيظهر نص السؤال هنا...</p>
+      <div id="options"></div>
+      <div class="actions">
+        <button onclick="markQuestion()">وضع علامة</button>
+        <button onclick="prevQuestion()">السابق</button>
+        <button onclick="nextQuestion()">التالي</button>
+        <button onclick="confirmFinishSection()">إنهاء القسم</button>
+      </div>
+    </div>
+  </div>
+  <div class="right-panel" id="questionNav"></div>
+</div>
+
+<!-- شاشة النهاية -->
+<div id="endScreen" class="overlay end-screen">
+  <div>
+    <h2>🌟 انتهيت من الاختبار 🌟</h2>
+    <div style="background:#e3f2fd; padding:30px; width:60%; margin:auto; border-radius:20px; border:3px solid #0d47a1;">
+      <p style="font-size:22px;">نسبة إنجازك:</p>
+      <p id="finalScoreText" style="font-size:42px; font-weight:bold; color:#1b5e20;"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const TOTAL_QUESTIONS = 120;
+  const SECTION_SIZE = 24;
+  const SECTION_TIME = 25 * 60; // 25 دقيقة
+
+  const questions = Array.from({length: TOTAL_QUESTIONS}, (_, i) => ({
+    q: `هذا هو السؤال رقم ${i+1}`,
+    options: ["أ", "ب", "ج", "د"],
+    answer: null,
+    marked: false
+  }));
+
+  let currentSection = 0; // 0..4
+  let currentIndex = 0;
+  let sectionCountdown = 5;
+  let sectionInterval = null;
+
+  let timeLeft = SECTION_TIME;
+  let timerInterval = null;
+
+  const instructionsScreen = document.getElementById('instructionsScreen');
+  const sectionScreen = document.getElementById('sectionScreen');
+  const quizContainer = document.getElementById('quizContainer');
+  const endScreen = document.getElementById('endScreen');
+  const questionNav = document.getElementById('questionNav');
+  const timerBox = document.getElementById('timerBox');
+  const sectionLabel = document.getElementById('sectionLabel');
+
+  function setFontSize(px){
+    document.body.style.fontSize = px + 'px';
+  }
+
+  // شاشة التعليمات -> بعدها شاشة الدخول للقسم الأول
+  function startAfterInstructions(){
+    instructionsScreen.style.display = 'none';
+    showSectionIntro(true);
+  }
+
+  function showSectionIntro(isFirst=false){
+    sectionScreen.style.display = 'flex'; // حتى تعمل خصائص flex في CSS
+    const msg = document.getElementById('sectionMessage');
+    if(isFirst){
+      msg.textContent = 'ستبدأ الآن أسئلة القسم رقم 1.';
+    }else{
+      // هنا النص اللي طلبته للانتقال بين الأقسام
+      msg.textContent = 'هل أنت متأكد أنك تريد الانتقال إلى القسم رقم ' + (currentSection + 1) + '؟';
+    }
+
+    sectionCountdown = 5;
+    document.getElementById('autoNextTimer').textContent =
+      `سيتم الانتقال خلال ${sectionCountdown} ثوانٍ...`;
+
+    clearInterval(sectionInterval);
+    sectionInterval = setInterval(()=>{
+      sectionCountdown--;
+      document.getElementById('autoNextTimer').textContent =
+        `سيتم الانتقال خلال ${sectionCountdown} ثوانٍ...`;
+      if(sectionCountdown <= 0){
+        skipSectionIntro();
+      }
+    },1000);
+  }
+
+  function skipSectionIntro(){
+    clearInterval(sectionInterval);
+    startSection();
+  }
+
+  function startSection(){
+    sectionScreen.style.display = 'none';
+    quizContainer.style.display = 'flex';
+    // تحديث نص القسم في كل مرة ندخل قسم جديد
+    sectionLabel.textContent = 'القسم رقم ' + (currentSection + 1);
+    startTimer();
+    buildNav();
+    loadQuestion(currentSection * SECTION_SIZE);
+  }
+
+  function startTimer(){
+    clearInterval(timerInterval);
+    timeLeft = SECTION_TIME;
+    updateTimer();
+    timerInterval = setInterval(()=>{
+      timeLeft--;
+      updateTimer();
+      if(timeLeft <= 0){
+        // انتهى الوقت على القسم
+        confirmFinishSection(true); // true = من التايمر
+      }
+    },1000);
+  }
+
+  function updateTimer(){
+    const m = Math.floor(timeLeft / 60);
+    const s = timeLeft % 60;
+    timerBox.textContent = `الوقت: ${m}:${s.toString().padStart(2,'0')}`;
+  }
+
+  function buildNav(){
+    questionNav.innerHTML = '';
+    const start = currentSection * SECTION_SIZE;
+    const end = Math.min(start + SECTION_SIZE, TOTAL_QUESTIONS);
+    for(let i = start; i < end; i++){
+      const btn = document.createElement('div');
+      btn.className = 'q-btn ' + (questions[i].answer ? 'answered' : 'unanswered');
+      btn.id = 'qbtn-' + i;
+      btn.textContent = i + 1;
+      btn.onclick = ()=> loadQuestion(i);
+      questionNav.appendChild(btn);
+    }
+  }
+
+  function loadQuestion(i){
+    currentIndex = i;
+    const q = questions[i];
+    document.getElementById('qTitle').textContent = `السؤال رقم ${i+1}`;
+    document.getElementById('qText').textContent = q.q;
+
+    const opts = document.getElementById('options');
+    opts.innerHTML = '';
+    q.options.forEach((op, idx)=>{
+      const label = document.createElement('label');
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'q' + i;
+      radio.value = op;
+      if(q.answer === op) radio.checked = true;
+      radio.onclick = ()=> {
+        q.answer = op;
+        updateBtnStatus(i);
+      };
+      label.appendChild(radio);
+      label.appendChild(document.createTextNode(' ' + op));
+      opts.appendChild(label);
+    });
+  }
+
+  function updateBtnStatus(i){
+    const btn = document.getElementById('qbtn-' + i);
+    if(!btn) return;
+    btn.className = 'q-btn';
+    if(questions[i].answer) btn.classList.add('answered');
+    else btn.classList.add('unanswered');
+    if(questions[i].marked) btn.classList.add('marked');
+  }
+
+  function markQuestion(){
+    questions[currentIndex].marked = !questions[currentIndex].marked;
+    updateBtnStatus(currentIndex);
+  }
+
+  function nextQuestion(){
+    const end = Math.min((currentSection+1)*SECTION_SIZE, TOTAL_QUESTIONS);
+    if(currentIndex + 1 < end){
+      loadQuestion(currentIndex + 1);
+    }
+  }
+
+  function prevQuestion(){
+    const start = currentSection * SECTION_SIZE;
+    if(currentIndex - 1 >= start){
+      loadQuestion(currentIndex - 1);
+    }
+  }
+
+  function confirmFinishSection(fromTimer=false){
+    const start = currentSection * SECTION_SIZE;
+    const end = Math.min(start + SECTION_SIZE, TOTAL_QUESTIONS);
+    let allAnswered = true;
+    for(let i=start;i<end;i++){
+      if(!questions[i].answer){
+        allAnswered = false;
+        break;
+      }
+    }
+    if(!allAnswered && !fromTimer){
+      alert('يجب حل جميع الأسئلة في هذا القسم قبل الانتقال.');
+      return;
+    }
+
+    if(fromTimer){
+      finishSection();
+    } else {
+      // نبدأ عملية الانتقال (مع صفحة "هل أنت متأكد...")
+      finishSection();
+    }
+  }
+
+  function finishSection(){
+    clearInterval(timerInterval);
+    currentSection++;
+    if(currentSection * SECTION_SIZE >= TOTAL_QUESTIONS){
+      finishExam();
+    }else{
+      showSectionIntro(false);
+    }
+  }
+
+  function finishExam(){
+    clearInterval(timerInterval);
+    quizContainer.style.display = 'none';
+    timerBox.style.display = 'none';
+    sectionScreen.style.display = 'none';
+    endScreen.style.display = 'flex';
+
+    const answered = questions.filter(q=> q.answer !== null).length;
+    const score = Math.round((answered / TOTAL_QUESTIONS) * 100);
+    document.getElementById('finalScoreText').textContent = `${score} / 100`;
+  }
+
+  // أول ما تفتح الصفحة: تعليمات
+  instructionsScreen.style.display = 'flex';
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
